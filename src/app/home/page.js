@@ -9,9 +9,3 @@ export default function App() {
     </div>
   );
 }
-// // src/app/page.js
-// import { redirect } from "next/navigation";
-
-// export default function Home() {
-//   redirect("/login_registration");
-// }
