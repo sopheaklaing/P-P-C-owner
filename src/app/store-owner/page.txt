@@ -1,0 +1,275 @@
+"use client";
+
+import  { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { Package, ShoppingCart, AlertTriangle, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export default function Dashboard() {
+  
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    pendingOrders: 0,
+    lowStockItems: 0
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [currentStoreId, setCurrentStoreId] = useState(null);
+  const user = JSON.parse(localStorage.getItem("user_info"))
+
+  // Get current user's store
+  const getUserStore = async ()=> {
+    try {
+      
+
+    
+
+      if (!user) return null;
+
+      const { data: storeRow } = await supabase
+        .from("stores")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      return storeRow?.id ?? null;
+    } catch (err) {
+      console.error("Error getting user store:", err);
+      return null;
+    }
+  };
+
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      const storeId = await getUserStore();
+      setCurrentStoreId(storeId);
+
+      if (!storeId) {
+        setLoading(false);
+        return;
+      }
+
+      // Load products count
+      const { count: productsCount, error: productsError } = await supabase
+        .from("products")
+        .select("*", { count: 'exact', head: true })
+        .eq("store_id", storeId);
+
+      if (productsError) {
+        console.error("Error loading products count:", productsError);
+      }
+
+      // Load pending orders count - FIXED: Check for multiple statuses that might be considered "pending"
+      const { count: pendingOrdersCount, error: ordersError } = await supabase
+        .from("orders")
+        .select("*", { count: 'exact', head: true })
+        .eq("store_id", storeId)
+        .in("status", ["PENDING", "pending"]); // Check both uppercase and lowercase
+
+      if (ordersError) {
+        console.error("Error loading pending orders count:", ordersError);
+        
+        // Alternative approach if the above fails
+        const { data: pendingOrders, error: altError } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("store_id", storeId)
+          .eq("status", "PENDING");
+          
+        if (!altError && pendingOrders) {
+          // Use the alternative count
+          setStats(prev => ({ ...prev, pendingOrders: pendingOrders.length }));
+        }
+      }
+
+      // Load low stock items
+      const { data: products, error: productsDataError } = await supabase
+        .from("products")
+        .select("stock_quantity, reorder_level")
+        .eq("store_id", storeId);
+
+      if (productsDataError) {
+        console.error("Error loading products for low stock:", productsDataError);
+      }
+
+      // Calculate low stock items manually
+      let lowStockCount = 0;
+      if (products) {
+        lowStockCount = products.filter(product => {
+          const stockQty = Number(product.stock_quantity) || 0;
+          const reorderLevel = Number(product.reorder_level) || 0;
+          return stockQty <= reorderLevel;
+        }).length;
+      }
+
+      setStats({
+        totalProducts: productsCount || 0,
+        pendingOrders: pendingOrdersCount || 0,
+        lowStockItems: lowStockCount
+      });
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+
+    // Refresh data every 5 minutes
+    const interval = setInterval(loadDashboardData, 300000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Alternative fetch function for debugging
+  const debugPendingOrders = async () => {
+    if (!currentStoreId) return;
+    
+    console.log("Debug: Fetching pending orders for store", currentStoreId);
+    
+    // Try different approaches to see what works
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, status, created_at")
+      .eq("store_id", currentStoreId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error("Debug error:", error);
+    } else {
+      console.log("Debug orders data:", data);
+      console.log("Orders with 'PENDING' status:", data?.filter(order => order.status === "PENDING").length);
+      console.log("All statuses found:", [...new Set(data?.map(order => order.status))]);
+    }
+  };
+
+  const formatNumber =(num)=> {
+    return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  return (
+    <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Store overview</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={loadDashboardData}
+            variant="outline"
+            size="sm"
+            className="h-10 gap-2"
+            disabled={loading}
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </Button>
+          {/* Debug button - remove in production */}
+          <Button
+            onClick={debugPendingOrders}
+            variant="ghost"
+            size="sm"
+            className="h-10 text-xs text-gray-500"
+          >
+            Debug
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {/* Total Products Card */}
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total Products
+            </CardTitle>
+            <Package className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-800">
+              {loading ? "..." : formatNumber(stats.totalProducts)}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Products in your inventory
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Pending Orders Card */}
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Pending Orders
+            </CardTitle>
+            <ShoppingCart className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-800">
+              {loading ? "..." : formatNumber(stats.pendingOrders)}
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-gray-500">
+                Orders waiting for processing
+              </p>
+              {stats.pendingOrders > 0 && (
+                <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                  Action needed
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Low Stock Items Card */}
+        {/* <Card className="border-l-4 border-l-red-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Low Stock Items
+            </CardTitle>
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-800">
+              {loading ? "..." : stats.lowStockItems}
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-gray-500">
+                Below reorder level
+              </p>
+              {stats.lowStockItems > 0 && (
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
+                  Restock needed
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card> */}
+      </div>
+
+      {/* Debug info - remove in production */}
+      {currentStoreId && (
+        <div className="text-xs text-gray-400 mb-4">
+          Store ID: {currentStoreId}
+        </div>
+      )}
+
+      {/* No Store Message */}
+      {!currentStoreId && !loading && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
+          ⚠️ No store found for this account. Register a store or contact the administrator.
+        </div>
+      )}
+
+
+    </div>
+  );
+}

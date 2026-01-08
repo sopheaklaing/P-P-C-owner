@@ -1,0 +1,55 @@
+const exampleProduct = {
+  id: 18, // product id
+  store_id: 19,
+  name: "MMIZOO Wrist Blood Pressure Monitor",
+  description: "Easy and Fast Reading: ...",
+  slug: "a1873457-cd06-421d-9b40-c1c10ceec886",
+  image_url: "https://pwnuieapdzgmipfqxufl.supabase.co/storage/v1/object/public/products_sub_images/main/1765563184730/1765563184730-151623.jpg",
+  created_at: "2025-12-09 04:33:46.67691",
+  stock_base_quantity: null,
+  category_id: "3",
+  sub_category_id: "5",
+  dosage_form: "Ointment",
+  strength: "120",
+  manufacturer: "asdf",
+  reorder_level: 10,
+  expiry_date: "2025-12-17",
+  batch_number: "123456789",
+  prescription_required: false,
+  updated_at: "2025-12-09 04:33:46.67691",
+  generic_name: "adsf",
+  stock_quantity: 10,
+  featured: true,
+  visible: true,
+
+  // Nested arrays
+  product_sale_units: [
+    {
+      id: 11,
+      product_id: 19,
+      unit_name: "pack",
+      conversion_factor: 100,
+      price: 10.0,
+      is_default_unit: true,
+      stock_quantity: 50,
+    },
+    {
+      id: 12,
+      product_id: 19,
+      unit_name: "piece",
+      conversion_factor: 1,
+      price: 0.11,
+      is_default_unit: false,
+      stock_quantity: 10,
+    },
+  ],
+
+  products_sub_images: [
+    {
+      id: 3,
+      product_id: 14,
+      image_url: "https://m.media-amazon.com/images/I/71uSQehnjAL._AC_SL1200_.jpg",
+    },
+    // More sub images if exist
+  ],
+};
