@@ -17,7 +17,7 @@
 // });
 import { createClient } from "@supabase/supabase-js";
 
-// Use a server-only key for API routes
+// Server-side safe key for API routes
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -27,6 +27,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   );
 }
 
+// Server-side Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
+  auth: {
+    autoRefreshToken: false, // server doesn’t need auto refresh
+    persistSession: false,   // server doesn’t persist sessions
+  },
 });
