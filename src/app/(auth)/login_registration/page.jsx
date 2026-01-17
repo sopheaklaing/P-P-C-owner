@@ -1,13 +1,23 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState , useEffect} from "react";
 import SignUpForm from "@/components/auth/SignUpForm";
 import LoginForm from "@/components/auth/LoginForm";
+import { useSearchParams } from "next/navigation";
 
 
 const Login_registration=()=>{
+    const searchParams = useSearchParams();
     const [tab, toggleTab] = useState("login")
+
+    //callback:  router.replace("/login_registration?tab=signUp&method=google&step=3");
+   useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "signUp") {
+      toggleTab("signUp");
+    }
+  }, [searchParams]);
 
     return (
             <div className="fixed z-502 top-0 bg-amber-50 w-screen h-screen flex justify-center items-center  ">

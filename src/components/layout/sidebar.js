@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Swal from "sweetalert2";
+
 
 
 // Icons
@@ -24,12 +26,25 @@ export default function Sidebar({ isOpen, onToggle }) {
   const [user, setUser] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  const menuItems = [
-    { href: "/store-owner", label: "Dashboard", icon: <FiHome /> },
-    { href: "/store-owner/manage-products", label: "Products Management", icon: <FiPackage /> },
-    { href: "/store-owner/store_orders", label: "Store Orders", icon: <FiShoppingCart /> },
-    { href: "/store-owner/store-profile-settings", label: "Store Profile", icon: <FiUser /> },
-  ];
+const menuItems = [
+  { href: "/store-owner", label: "Dashboard", icon: <FiHome /> },
+
+  {
+    href: "/store-owner/manage-products",
+    label: "Products Management",
+    icon: <FiPackage />,
+    requiresStore: true,
+  },
+  {
+    href: "/store-owner/store_orders",
+    label: "Store Orders",
+    icon: <FiShoppingCart />,
+    requiresStore: true,
+  },
+
+  { href: "/store-owner/store-profile-settings", label: "Store Profile", icon: <FiUser /> },
+];
+
 
   
   // const  store={
@@ -37,7 +52,13 @@ export default function Sidebar({ isOpen, onToggle }) {
   // }
  
   const [userData,setUserData] = useState(JSON.parse(localStorage.getItem("user_info")))
-  const [storeData,setStoreData] = useState(JSON.parse(localStorage.getItem("store_info")))
+  const [storeData, setStoreData] = useState(() => {
+  const data = localStorage.getItem("store_info");
+  return data ? JSON.parse(data) : {};
+});
+
+const isStoreReady = storeData && Object.keys(storeData).length > 0;
+
 
   // const userData = JSON.parse(localStorage.getItem("user_info"));
   //const storeData = JSON.parse(localStorage.getItem("store_info"));
@@ -80,7 +101,7 @@ export default function Sidebar({ isOpen, onToggle }) {
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
                   <Image
-                    src={storeData.logo_url?storeData.logo_url:"/fe.jpg"}
+                     src={storeData?.logo_url || "/fe.jpg"}
                     alt="Logo"
                     width={40}
                     height={40}
@@ -95,7 +116,7 @@ export default function Sidebar({ isOpen, onToggle }) {
             ) : (
               <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
                 <Image
-                  src={storeData.logo_url?storeData.logo_url:"/fe.jpg"}
+                  src={storeData?.logo_url || "/fe.jpg"}
                   alt="Logo"
                   width={40}
                   height={40}
@@ -120,43 +141,60 @@ export default function Sidebar({ isOpen, onToggle }) {
         {/* NAV */}
         <nav className="mt-4 flex flex-col h-[calc(100vh-120px)]">
           <ul className="space-y-1 px-3 flex-1">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`relative flex items-center transition-all duration-200 group
-                      ${isOpen ? "px-3 py-3 space-x-3" : "px-3 py-3 justify-center"}
-                      ${isActive
-                        ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700 font-medium"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}
-                      rounded-lg`}
-                    title={!isOpen ? item.label : ""}
-                  >
-                    <span
-                      className={`text-lg ${
-                        isActive ? "text-blue-700" : "text-gray-500 group-hover:text-gray-700"
-                      }`}
-                    >
-                      {item.icon}
-                    </span>
+{menuItems.map((item) => {
+  const isActive = pathname === item.href;
 
-                    {isOpen && (
-                      <span className="text-sm font-medium tracking-wide">
-                        {item.label}
-                      </span>
-                    )}
+  const handleClick = (e) => {
+    if (item.requiresStore && !isStoreReady) {
+      e.preventDefault();
 
-                    {!isOpen && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
-                        {item.label}
-                      </div>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
+      Swal.fire({
+        icon: "warning",
+        title: "Store profile required",
+        text: "Please complete your store profile before accessing this section.",
+        confirmButtonText: "Go to Store Profile",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          router.push("/store-owner/store-profile-settings");
+        }
+      });
+    }
+  };
+
+  return (
+    <li key={item.href}>
+      <Link
+        href={item.href}
+        onClick={handleClick}
+        className={`relative flex items-center transition-all duration-200 group
+          ${isOpen ? "px-3 py-3 space-x-3" : "px-3 py-3 justify-center"}
+          ${
+            isActive
+              ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700 font-medium"
+              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          }
+          ${item.requiresStore && !isStoreReady ? "opacity-60 cursor-not-allowed" : ""}
+          rounded-lg`}
+        title={!isOpen ? item.label : ""}
+      >
+        <span
+          className={`text-lg ${
+            isActive ? "text-blue-700" : "text-gray-500 group-hover:text-gray-700"
+          }`}
+        >
+          {item.icon}
+        </span>
+
+        {isOpen && (
+          <span className="text-sm font-medium tracking-wide">
+            {item.label}
+          </span>
+        )}
+      </Link>
+    </li>
+  );
+})}
+
           </ul>
 
           {/* USER & LOGOUT */}

@@ -29,7 +29,14 @@ export default function Dashboard() {
   const [currentStoreId, setCurrentStoreId] = useState(null);
   const [earnings, setEarnings] = useState({ card: 0, cash: 0 });
 
-  const storeData = JSON.parse(localStorage.getItem("store_info"));
+  const [storeData, setStoreData] = useState(null);
+
+useEffect(() => {
+  const data = localStorage.getItem("store_info");
+  if (data) {
+    setStoreData(JSON.parse(data));
+  }
+}, []);
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -188,7 +195,7 @@ export default function Dashboard() {
 
         <Card
           className={`border-l-4 ${
-            storeData.validated ? "border-l-green-500" : "border-l-red-500"
+            storeData?.validated ? "border-l-green-500" : "border-l-red-500"
           }`}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -198,7 +205,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">
-              {storeData.validated ? (
+              {storeData?.validated ? (
                 <span className="text-green-600">
                   <CheckCheckIcon /> Validated
                 </span>
@@ -209,7 +216,7 @@ export default function Dashboard() {
               )}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {storeData.validated
+              {storeData?.validated
                 ? "Your store products are visible to customers."
                 : "Your store products are hidden until validation is complete."}
             </p>

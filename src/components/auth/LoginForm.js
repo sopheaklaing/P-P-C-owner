@@ -1,80 +1,84 @@
 "use client";
 
 import { useState } from "react";
-// import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-
+import { useEffect } from "react";
+import Swal from "sweetalert2";
+import { FcGoogle } from "react-icons/fc";
 export default function LoginForm() {
   const router = useRouter();
 
   const [mode, setMode] = useState("login"); // login | register
-  const [step, setStep] = useState(1);       // 1 = enter phone, 2 = enter OTP
+  const [step, setStep] = useState(1); // 1 = enter phone, 2 = enter OTP
   const [loading, setLoading] = useState(false);
-  const [method, setMethod] = useState("");
+  const [method, setMethod] = useState(null);
 
   // Login states
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
 
-
   // ---------------------
   // Send OTP
   // ---------------------
-const sendOtp = async () => {
-  setLoading(true);
-  setMethod("otp");
+  const sendOtp = async () => {
+    if (loading) return;
 
-  try {
-    // ----------------------------------------
-    // 1. Check if phone exists in users table
-    // ----------------------------------------
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("id")
-      .eq("phone_number", phone)
-      .maybeSingle();
+    setLoading(true);
+    setMethod("otp");
 
-    // Phone NOT registered → go to registration
-    if (!existingUser) {
-      alert("This phone number is not registered. Please create an account first.");
+    try {
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("phone_number", phone)
+        .maybeSingle();
 
-      router.push(`/login_registration?phone=${phone}&method=otp`);
+      if (!existingUser) {
+        Swal.fire({
+          title: "This phone number is not registered!",
+          text: "Please create an account first!",
+          icon: "error",
+        });
+
+        router.push(" /login_registration?phone=${phone}&method=otp" );
+        return;
+      }
+
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        Swal.fire("OTP sent!", "Check your SMS", "success");
+        setStep(2);
+      } else {
+        Swal.fire("Failed!", "Failed to send OTP", "error");
+      }
+    } catch {
+      Swal.fire("Network error!", "Check your internet", "error");
+    } finally {
       setLoading(false);
-      return;
+      setMethod(null);
     }
-
-    // ----------------------------------------
-    // 2. Phone exists → proceed to send OTP
-    // ----------------------------------------
-    const res = await fetch("/api/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      alert("OTP sent successfully");
-      setStep(2);
-    } else {
-      alert("Failed to send OTP");
-    }
-  } catch (error) {
-    alert("Network error");
-  }
-
-  setLoading(false);
-};
-
+  };
 
   // ---------------------
   // Verify OTP
   // ---------------------
   const verifyOtp = async () => {
-    if (!otp) return alert("Missing", "Enter OTP", "warning");
+    if (!otp)
+      return Swal.fire({
+        title: "Missing OTP!",
+        text: "Be sure to input the OTP",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
 
     setLoading(true);
     try {
@@ -86,58 +90,68 @@ const sendOtp = async () => {
 
       const data = await res.json();
       if (data.success) {
-        alert("Success", "Logged in!", "success");
+        Swal.fire({
+          title: "Login Successful!",
+          text: "Took me 2 days to do this, fu twiolio",
+          icon: "success",
+          confirmButtonText: "OK",
+        });
         router.push("/home");
       } else {
-        alert("Wrong OTP", "Try again", "error");
+        //alert("Wrong OTP", "Try again", "error");
+        Swal.fire({
+          title: "Wrong OTP!",
+          text: "Try again",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
       }
     } catch {
-      alert("Error", "Network error", "error");
+      //alert("Error", "Network error", "error");
+      Swal.fire({
+        title: "Network error!",
+        text: "You may need to check your internet connection",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
     }
     setLoading(false);
   };
 
- 
-
-
-
   // ---------------------
   // Google login placeholder
   // ---------------------
-const handleGoogleLogin = async () => {
-  setLoading(true);
-  setMethod("gmail")
+  const handleGoogleLogin = async () => {
+    if (loading) return;
 
-  try {
-    // Mark that user intentionally clicked Google
-    localStorage.setItem("google_login_attempt", "true");
+    setLoading(true);
+    setMethod("gmail");
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: "select_account" },
-      },
-    });
+    try {
+      localStorage.setItem("google_login_attempt", "true");
 
-    if (error) throw error;
-  } catch (error) {
-    alert("Login Failed: " + (error.message || "Something went wrong"));
-    setLoading(false);
-  }
-};
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: "select_account" },
+        },
+      });
 
+      if (error) throw error;
+    } catch {
+      Swal.fire("Login Failed!", "Something went wrong", "error");
+      setLoading(false);
+      setMethod(null);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center  bg-gray-100">
-
       <div className="bg-white w-96 shadow-xl rounded-xl p-6">
-
         <h1 className="text-2xl font-bold text-center mb-4">
           {mode === "login" ? "Login" : "Register"}
         </h1>
-
-
         {/* ----------------------
            LOGIN PAGE (STEP 1)
         ---------------------- */}
@@ -145,7 +159,7 @@ const handleGoogleLogin = async () => {
           <div className="flex flex-col gap-3">
             <input
               className="border p-2 rounded"
-              placeholder="Phone Number"
+              placeholder="+85512345678"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -153,9 +167,9 @@ const handleGoogleLogin = async () => {
             <button
               onClick={sendOtp}
               disabled={loading}
-              className="bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+              className="bg-green-600 hover:bg-green-700 text-white py-2 border rounded-lg font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading && method=="otp"? "Sending..." : "Send OTP"}
+              {loading && method === "otp" ? "Sending..." : "Send OTP"}
             </button>
 
             <p className="text-center text-gray-500">or</p>
@@ -163,12 +177,27 @@ const handleGoogleLogin = async () => {
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="bg-gray-200 hover:bg-gray-300 py-2 rounded"
+              className="
+    flex items-center justify-center gap-3
+    w-full py-2.5 px-4 rounded-lg
+    bg-white text-gray-700 font-medium
+    border border-gray-300
+    shadow-sm
+    hover:bg-gray-50 hover:shadow
+    active:bg-gray-100
+    disabled:opacity-60 disabled:cursor-not-allowed
+    transition-all duration-200
+  "
             >
-              {loading && method=="gmail"? "Redirecting..." : "Continue with Google"}
+              {loading && method === "gmail" ? (
+                "Redirecting…"
+              ) : (
+                <>
+                  <FcGoogle />
+                  Continue with Google
+                </>
+              )}
             </button>
-
-       
           </div>
         )}
 
@@ -177,7 +206,6 @@ const handleGoogleLogin = async () => {
         ---------------------- */}
         {step === 2 && (
           <div className="flex flex-col gap-3">
-
             <input
               className="border p-2 rounded"
               placeholder="Enter OTP"
@@ -188,9 +216,9 @@ const handleGoogleLogin = async () => {
             <button
               onClick={verifyOtp}
               disabled={loading}
-              className="bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+              className="bg-green-600 hover:bg-green-700 text-white py-2 rounded cursor-pointer font-semibold"
             >
-              {loading && method=="otp"? "Verifying..." : "Verify OTP"}
+              {loading && method == "otp" ? "Verifying..." : "Verify OTP"}
             </button>
 
             <p

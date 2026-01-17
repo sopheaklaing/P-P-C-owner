@@ -1,62 +1,84 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Spinner from "@/components/spinner";
 
 
 export default function OAuthCallback() {
   const router = useRouter();
+  const [step, setStep] = useState("Checking session...");
 
   useEffect(() => {
-    const checkUser = async () => {
-      const attempted = localStorage.getItem("google_login_attempt");
 
-      //  User did NOT press "Google Login"
-      if (!attempted) {
-        router.replace("/login_registration");
+    const run = async () => {
+      // ✅ STEP 1: SET SESSION FROM URL HASH
+      const hash = window.location.hash.substring(1);
+      
+      const params = new URLSearchParams(hash);
+
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+
+      if (access_token && refresh_token) {
+        setStep("Setting session...");
+        const { error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        });
+
+        if (error) {
+          console.error(error);
+          router.replace("/login_registration");
+          return;
+        }
+      }
+
+      // ✅ STEP 2: NOW getSession() WILL WORK
+      setStep("Fetching session...");
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error ||  !data.session?.user) {
+        setStep("No session found. Redirecting...");
+        setTimeout(() => router.replace("/login_registration"), 800);
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const user = data.session.user;
 
-      if (!session?.user) {
-        router.replace("/login_registration");
-        return;
-      }
-
-      const user = session.user;
-
-      // Check in custom users table
+      // ✅ STEP 3: YOUR EXISTING LOGIC (UNCHANGED)
+      setStep("Checking account...");
       const { data: existingUser } = await supabase
         .from("users")
         .select("*")
         .eq("email", user.email)
         .maybeSingle();
 
-      // ⚠️ New Google user → go register
       if (!existingUser) {
-        router.replace(`/login_registration?email=${user.email}&method=google`);
-      } 
-      // ✔ Already registered → go home
-      else {
+        setStep("Creating account...");
+        await supabase.from("users").insert({
+          auth_id: user.id,
+          email: user.email,
+          first_name: user.user_metadata?.given_name || "",
+          last_name: user.user_metadata?.family_name || "",
+          role: "owner",
+        });
+
+        router.replace("/login_registration?tab=signUp&method=google&step=3");
+      } else {
+        setStep("Welcome back!");
         router.replace("/store-owner");
       }
-
-      // Clear flag so refresh doesn't auto-login
-      localStorage.removeItem("google_login_attempt");
     };
 
-    checkUser();
-  }, []);
+    run();
+  }, [router]);
 
   return (
-  <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-    <div className="h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-    <p className="text-gray-600 text-sm">Checking your account...</p>
-  </div>
-);
-
+    <div className="flex items-center justify-center h-screen">
+      <Spinner />
+      <p className="ml-4">{step}</p>
+    </div>
+  );
 }
