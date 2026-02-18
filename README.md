@@ -1,6 +1,34 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
+# Owner Store Pharmacy System
+
+This is a pharmacy management web application built with **Next.js**.  
+The system allows users to log in securely and enables the admin to manage pharmacy data through a dashboard.
+
+## Features
+- User authentication with:
+  - OTP login
+  - Google login
+- Admin dashboard
+- CRUD operations (Create, Read, Update, Delete)
+- Pharmacy product management
+- Secure login system
+
+## Tech Stack
+- Next.js
+- React
+- JavaScript
+- Tailwind CSS (if used)
+- Database (specify: MySQL, Firebase, etc.)
+
+## Getting Started
+
+First, install dependencies:
+
+```bash
+npm install
+
 
 First, run the development server:
 
