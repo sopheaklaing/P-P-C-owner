@@ -10,9 +10,10 @@ The system allows users to log in securely and enables the admin to manage pharm
 - User authentication with:
   - OTP login
   - Google login
-- Admin dashboard
+  - dashboard
 - CRUD operations (Create, Read, Update, Delete)
 - Pharmacy product management
+- create store (if no create can't not for sell products to users page)
 - Secure login system
 
 ## Tech Stack
