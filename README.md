@@ -17,10 +17,9 @@ The system allows users to log in securely and enables the admin to manage pharm
 
 ## Tech Stack
 - Next.js
-- React
 - JavaScript
 - Tailwind CSS (if used)
-- Database (specify: MySQL, Firebase, etc.)
+- Database (specify: Supabase)
 
 ## Getting Started
 
